@@ -1,0 +1,19 @@
+# PyTorch & Audio Processing
+torch>=2.2.0
+torchaudio>=2.2.0
+sympy>=1.13.1
+soundfile>=0.12.1
+
+# Speech Recognition & Speaker Diarization
+faster-whisper>=1.0.0
+pyannote.audio>=3.1.0
+huggingface_hub>=0.23.0,<0.24.0
+
+# Video Download & Scraping
+yt-dlp>=2024.0.0
+
+# Local LLM Integration
+ollama>=0.3.0
+pydantic>=2.0.0
+python-dotenv>=1.0.0
+

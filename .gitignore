@@ -1,0 +1,88 @@
+# ==============================================
+# Git Ignore for AnimDiar-Sync
+# ==============================================
+
+# 1. 敏感憑證與環境變數 (Credentials & Secrets)
+.env
+*.env
+!.env.example
+*.key
+*.pem
+credentials.json
+
+# 2. 集中輸出目錄與暫存產出 (Output Directories - 集中存放與雙層保護)
+output/
+output/*
+!output/.gitignore
+downloads/
+re_output/
+
+# 音訊與視訊媒體暫存檔 (Media & Audio Caches)
+*.wav
+*.mp3
+*.mp4
+*.m4a
+*.flac
+*.aac
+extracted_audio_*.wav
+
+# 中繼與暫存分析報告 (Intermediate Analysis JSON / MD)
+final_analysis*.json
+final_analysis*.md
+output_emotion_analysis*.json
+pyannote_speaker_segments*.json
+whisper_transcription_full*.json
+
+# 3. Python 虛擬環境與編譯快取 (Python Environment & Caches)
+.venv/
+venv/
+ENV/
+env/
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# 4. 深度學習模型權重與暫存 (Model Weights & Checkpoints)
+*.pth
+*.pt
+*.bin
+*.onnx
+*.safetensors
+models/
+pretrained_weights/
+
+# 5. 系統與編輯器設定 (OS & IDE Metadata)
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# 6. 機敏會議資料與特定專案資料夾 (保護預防規則)
+nuscale_tva_meeting_*/
+一些記錄/
+make_video/
+
