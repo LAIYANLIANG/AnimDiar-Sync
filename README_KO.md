@@ -27,6 +27,89 @@
 
 ---
 
+## 🧩 시스템 아키텍처 및 작업 파이프라인 (Architecture & Pipeline)
+
+### 1. 엔드투엔드 파이프라인 워크플로우 (Pipeline Workflow)
+
+본 파이프라인은 4개의 독립된 단계로 동작하며, 각각 전담 모듈에 의해 실행됩니다:
+
+```mermaid
+flowchart TD
+    subgraph Stage1["1. 입력 및 전처리 (Input & Preprocessing)"]
+        A1["Instagram 릴스 URL"] --> B1["downloader.py<br/>(yt-dlp 스트림 추출)"]
+        A2["로컬 영상 파일 (*.mp4/*.wav)"] --> B2["FFmpeg 변환 모듈<br/>(16kHz 모노 PCM WAV 변환)"]
+        B1 --> B2
+    end
+
+    subgraph Stage2["2. 음향 추론 코어 (diarization_transcription.py)"]
+        B2 --> C1["Pyannote.audio 3.1<br/>화자 성문 클러스터링 및 구간 분리<br/>(Speaker Diarization)"]
+        B2 --> C2["Faster-Whisper<br/>고속 다국어 음성인식 및 텍스트 변환<br/>(ASR Transcription)"]
+        C1 --> D["시계열 중첩 매핑 알고리즘<br/>(Temporal Overlap Mapping)"]
+        C2 --> D
+    end
+
+    subgraph Stage3["3. 문맥 및 감정 분석 (emotion_analyzer.py)"]
+        D --> E["Ollama 로컬 LLM 엔진<br/>cwchang/llama3-taide-lx-8b"]
+        E --> F1["등장인물 심리 프로파일 생성 (Profiles)"]
+        E --> F2["문장별 대사 윤문 및 감정·어조 태깅 (Emotions)"]
+        E --> F3["대화 맥락 전체 요약 (Summary)"]
+    end
+
+    subgraph Stage4["4. 집중 출력 관리 (main.py / render_report.py)"]
+        F1 --> G["데이터 구조 패키징"]
+        F2 --> G
+        F3 --> G
+        G --> H1["📄 dialogue_analysis_report.md<br/>(시각화 마크다운 보고서)"]
+        G --> H2["📦 dialogue_analysis.json<br/>(구조화된 JSON 데이터셋)"]
+        H1 --> I["📁 output/ 출력 디렉토리<br/>(이중 .gitignore 보안 격리)"]
+        H2 --> I
+    end
+```
+
+### 2. 코드베이스 아키텍처 (Codebase Structure)
+
+```mermaid
+graph LR
+    subgraph Orchestration["실행 및 CLI 계층"]
+        SHELL["start_project.sh<br/>환경 자가진단 및 원클릭 구동"]
+        MAIN["main.py<br/>중앙 파이프라인 제어 CLI"]
+    end
+
+    subgraph CoreServices["추론 및 핵심 처리 계층"]
+        DL["downloader.py<br/>영상 추출 및 스트림 다운로드"]
+        DT["diarization_transcription.py<br/>화자 분리 및 음성인식 정렬"]
+        EA["emotion_analyzer.py<br/>TAIDE-8B 감정·어조 분석"]
+        RR["render_report.py<br/>마크다운 & JSON 결과 렌더링"]
+    end
+
+    subgraph Security["환경 및 보안 설정 계층"]
+        ENV[".env / .env.example<br/>인증 토큰 및 엔드포인트"]
+        GIT[".gitignore & output/.gitignore<br/>이중 정보유출 방지 규칙"]
+        REQ["requirements.txt<br/>호환성 보증 의존성 목록"]
+    end
+
+    SHELL --> MAIN
+    MAIN --> DL
+    MAIN --> DT
+    MAIN --> EA
+    MAIN --> RR
+    ENV -.-> MAIN
+    GIT -.-> CoreServices
+```
+
+### 3. 모듈별 역할 및 기술 스펙
+
+| 모듈 파일명 | 핵심 기술 / 모델 | 주요 역할 및 기능 설명 | 산출물 |
+| :--- | :--- | :--- | :--- |
+| **`main.py`** | `argparse` / Pipeline Controller | CLI 컨트롤러. 다운로드, 화자 분리, STT, 감정 분석, 보고서 생성을 총괄 제어. | 콘솔 진행 로그, 전체 프로세스 트리거 |
+| **`downloader.py`** | `yt-dlp` | 인스타그램 릴스 등 SNS 플랫폼에서 고화질 영상/오디오 스트림을 안전하게 추출. | `output/downloads/*.mp4` |
+| **`diarization_transcription.py`** | `Pyannote.audio 3.1`<br>`Faster-Whisper` | 오디오 16kHz 리샘플링, 화자 성문 클러스터링 분리, 텍스트 변환 및 타임스탬프 정렬. | 화자 태그가 매핑된 대사 목록 |
+| **`emotion_analyzer.py`** | `Ollama`<br>`Llama3-TAIDE-8B` | 대화 맥락 심층 이해, 인물 성격 프로파일링, 각 문장별 감정선 및 심리 어조 태깅. | 감정 분석 JSON 데이터 구조 |
+| **`render_report.py`** | Python IO / Markdown Engine | 분석 데이터를 가독성 높은 마크다운 보고서 및 시스템 연동용 JSON 파일로 변환. | `dialogue_analysis_report.md`<br>`dialogue_analysis.json` |
+| **`start_project.sh`** | Bash Script | 원클릭 실행 스크립트. `.env` 로드, Ollama 서버 확인, `.venv` 가상환경 활성화를 자동 수행. | 대화형 작업 셸 환경 |
+
+---
+
 ## 🚀 빠른 시작 (Quick Start)
 
 ### 1. 저장소 복제 (Clone)
@@ -101,4 +184,3 @@ python main.py --video-path "./path/to/video.mp4" --output-dir ./output
 
 본 프로젝트는 [MIT License](LICENSE)에 따라 오픈소스로 배포됩니다.
 Copyright (c) 2026 [LAIYANLIANG](https://github.com/LAIYANLIANG).
-

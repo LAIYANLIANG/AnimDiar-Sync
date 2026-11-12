@@ -27,6 +27,89 @@ An automated, privacy-first offline video-to-speech intelligence pipeline. Desig
 
 ---
 
+## 🧩 System Architecture & Pipeline Workflow
+
+### 1. End-to-End Pipeline Workflow
+
+The pipeline operates across four discrete stages, each executed by a modularized component:
+
+```mermaid
+flowchart TD
+    subgraph Stage1["1. Input & Preprocessing"]
+        A1["Instagram Reel URL"] --> B1["downloader.py<br/>(yt-dlp stream extractor)"]
+        A2["Local Video File (*.mp4/*.wav)"] --> B2["FFmpeg Audio Module<br/>(Resample to 16kHz Mono PCM WAV)"]
+        B1 --> B2
+    end
+
+    subgraph Stage2["2. Acoustic Inference Core (diarization_transcription.py)"]
+        B2 --> C1["Pyannote.audio 3.1<br/>Speaker Clustering & Segmentation<br/>(Speaker Diarization)"]
+        B2 --> C2["Faster-Whisper<br/>High-Speed Multilingual ASR<br/>(Speech-to-Text)"]
+        C1 --> D["Temporal Overlap Alignment Algorithm<br/>(Timestamp Mapping)"]
+        C2 --> D
+    end
+
+    subgraph Stage3["3. Semantic & Tone Analysis (emotion_analyzer.py)"]
+        D --> E["Ollama Local LLM Engine<br/>cwchang/llama3-taide-lx-8b"]
+        E --> F1["Speaker Psychological Profiling (Profiles)"]
+        E --> F2["Per-Sentence Emotion & Tone Tagging (Emotions)"]
+        E --> F3["Contextual Narrative Summary (Summary)"]
+    end
+
+    subgraph Stage4["4. Output Management (main.py / render_report.py)"]
+        F1 --> G["Data Structure Packaging"]
+        F2 --> G
+        F3 --> G
+        G --> H1["📄 dialogue_analysis_report.md<br/>(Visual Markdown Report)"]
+        G --> H2["📦 dialogue_analysis.json<br/>(Machine-Readable Dataset)"]
+        H1 --> I["📁 output/ Directory<br/>(Dual-layer .gitignore Protected)"]
+        H2 --> I
+    end
+```
+
+### 2. Codebase Architecture
+
+```mermaid
+graph LR
+    subgraph Orchestration["Execution & CLI Layer"]
+        SHELL["start_project.sh<br/>Self-check & Environment Launch"]
+        MAIN["main.py<br/>Central Pipeline Controller"]
+    end
+
+    subgraph CoreServices["Processing & Inference Layer"]
+        DL["downloader.py<br/>Video Ingestion & Streaming"]
+        DT["diarization_transcription.py<br/>Diarization & ASR Alignment"]
+        EA["emotion_analyzer.py<br/>TAIDE-8B Sentiment Engine"]
+        RR["render_report.py<br/>Markdown & JSON Rendering"]
+    end
+
+    subgraph Governance["Security & Config Layer"]
+        ENV[".env / .env.example<br/>Credentials & Endpoints"]
+        GIT[".gitignore & output/.gitignore<br/>Dual-layer Leak Prevention"]
+        REQ["requirements.txt<br/>Deterministic Dependencies"]
+    end
+
+    SHELL --> MAIN
+    MAIN --> DL
+    MAIN --> DT
+    MAIN --> EA
+    MAIN --> RR
+    ENV -.-> MAIN
+    GIT -.-> CoreServices
+```
+
+### 3. Module Responsibilities Matrix
+
+| Module | Core Technology | Role & Functionality | Key Output |
+| :--- | :--- | :--- | :--- |
+| **`main.py`** | `argparse` / Pipeline Controller | CLI orchestrator executing the ingestion, diarization, transcription, and analysis workflow. | Terminal progress logs, triggers complete pipeline |
+| **`downloader.py`** | `yt-dlp` | Handles video stream retrieval from social platforms (e.g., Instagram Reels). | `output/downloads/*.mp4` |
+| **`diarization_transcription.py`** | `Pyannote.audio 3.1`<br>`Faster-Whisper` | Audio resampling, speaker voiceprint clustering, speech recognition, and timestamp alignment. | Aligned speaker dialogue transcript |
+| **`emotion_analyzer.py`** | `Ollama`<br>`Llama3-TAIDE-8B` | Natural language contextual analysis, psychological profiling, emotion and conversational tone tagging. | Semantic emotion JSON structure |
+| **`render_report.py`** | Python IO / Markdown Engine | Transforms structured data into comprehensive Markdown documents and JSON records. | `dialogue_analysis_report.md`<br>`dialogue_analysis.json` |
+| **`start_project.sh`** | Bash Script | One-click developer entrypoint: verifies Ollama daemon, exports environment variables, activates `.venv`. | Interactive work environment |
+
+---
+
 ## 🚀 Quick Start
 
 ### 1. Clone the Repository
@@ -101,4 +184,3 @@ This project adheres strictly to AI safety and open-source compliance standards.
 
 Licensed under the [MIT License](LICENSE).
 Copyright (c) 2026 [LAIYANLIANG](https://github.com/LAIYANLIANG).
-

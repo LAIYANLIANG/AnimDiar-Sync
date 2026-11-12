@@ -27,6 +27,89 @@
 
 ---
 
+## 🧩 システム設計とワークフロー (Architecture & Pipeline)
+
+### 1. エンドツーエンド処理フロー (Pipeline Workflow)
+
+本パイプラインは4つの処理フェーズで構成され、それぞれ独立した Python モジュールによって実行されます：
+
+```mermaid
+flowchart TD
+    subgraph Stage1["1. 入力および前処理 (Input & Preprocessing)"]
+        A1["Instagram リール URL"] --> B1["downloader.py<br/>(yt-dlp ストリーム抽出)"]
+        A2["ローカル動画ファイル (*.mp4/*.wav)"] --> B2["FFmpeg 変換モジュール<br/>(16kHz モノラル PCM WAV 変換)"]
+        B1 --> B2
+    end
+
+    subgraph Stage2["2. 音声推論コア (diarization_transcription.py)"]
+        B2 --> C1["Pyannote.audio 3.1<br/>話者声紋クラスタリング＆区間分割<br/>(Speaker Diarization)"]
+        B2 --> C2["Faster-Whisper<br/>高速多言語音声認識＆文字起こし<br/>(ASR Transcription)"]
+        C1 --> D["時系列重複アライメントアルゴリズム<br/>(Temporal Overlap Mapping)"]
+        C2 --> D
+    end
+
+    subgraph Stage3["3. 文脈理解＆感情分析 (emotion_analyzer.py)"]
+        D --> E["Ollama ローカル LLM エンジン<br/>cwchang/llama3-taide-lx-8b"]
+        E --> F1["登場人物の心理プロファイル生成 (Profiles)"]
+        E --> F2["文単位のセリフ推敲＆感情・語気タグ (Emotions)"]
+        E --> F3["会話コンテキスト全体の要約 (Summary)"]
+    end
+
+    subgraph Stage4["4. 集中出力管理 (main.py / render_report.py)"]
+        F1 --> G["データ構造のパッケージング"]
+        F2 --> G
+        F3 --> G
+        G --> H1["📄 dialogue_analysis_report.md<br/>(可視化 Markdown レポート)"]
+        G --> H2["📦 dialogue_analysis.json<br/>(構造化 JSON データセット)"]
+        H1 --> I["📁 output/ 出力ディレクトリ<br/>(二重 .gitignore セキュリティ保護)"]
+        H2 --> I
+    end
+```
+
+### 2. プログラム構造とモジュール構成 (Codebase Architecture)
+
+```mermaid
+graph LR
+    subgraph UI_CLI["制御＆実行レイヤー"]
+        SHELL["start_project.sh<br/>環境自己診断＆ワンクリック起動"]
+        MAIN["main.py<br/>中央パイプライン制御 CLI"]
+    end
+
+    subgraph CoreServices["推論＆処理コアレイヤー"]
+        DL["downloader.py<br/>動画取得＆ストリーミング解析"]
+        DT["diarization_transcription.py<br/>話者分離＆音声認識アライメント"]
+        EA["emotion_analyzer.py<br/>TAIDE-8B 感情・語気分析"]
+        RR["render_report.py<br/>Markdown & JSON レポート出力"]
+    end
+
+    subgraph Security["環境＆セキュリティ設定レイヤー"]
+        ENV[".env / .env.example<br/>認証トークン＆エンドポイント設定"]
+        GIT[".gitignore & output/.gitignore<br/>二重情報漏洩防止ルール"]
+        REQ["requirements.txt<br/>厳密バージョン管理された依存関係"]
+    end
+
+    SHELL --> MAIN
+    MAIN --> DL
+    MAIN --> DT
+    MAIN --> EA
+    MAIN --> RR
+    ENV -.-> MAIN
+    GIT -.-> CoreServices
+```
+
+### 3. モジュール機能対応表
+
+| モジュール名 | コア技術 / モデル | 役割と主な機能 | 主な出力 |
+| :--- | :--- | :--- | :--- |
+| **`main.py`** | `argparse` / Pipeline Controller | CLI コントローラー。ダウンロード、話者分離、文字起こし、感情分析、レポート生成の全工程を統括。 | コンソール進捗ログ、処理の実行トリガー |
+| **`downloader.py`** | `yt-dlp` | Instagram リール等の SNS から高画質な動画・音声を自動抽出・ダウンロード。 | `output/downloads/*.mp4` |
+| **`diarization_transcription.py`** | `Pyannote.audio 3.1`<br>`Faster-Whisper` | 16kHz リサンプリング、話者声紋クラスタリング、高速文字起こし、タイムスタンプのアライメント。 | 話者タグ付きセリフリスト |
+| **`emotion_analyzer.py`** | `Ollama`<br>`Llama3-TAIDE-8B` | 会話全体の文脈把握、話者心理プロファイル作成、各セリフの感情・語気アノテーション。 | 感情分析 JSON データ構造 |
+| **`render_report.py`** | Python IO / Markdown Engine | 分析データを整形し、見やすい Markdown 文書およびシステム連携用 JSON へ出力。 | `dialogue_analysis_report.md`<br>`dialogue_analysis.json` |
+| **`start_project.sh`** | Bash Script | ワンクリック起動スクリプト。`.env` 読み込み、Ollama サービス状態確認、`.venv` 有効化を自動実行。 | 対話型作業シェル環境 |
+
+---
+
 ## 🚀 クイックスタート
 
 ### 1. リポジトリのクローン
@@ -101,4 +184,3 @@ python main.py --video-path "./path/to/video.mp4" --output-dir ./output
 
 本プロジェクトは [MIT License](LICENSE) のもとで公開されています。
 Copyright (c) 2026 [LAIYANLIANG](https://github.com/LAIYANLIANG).
-
